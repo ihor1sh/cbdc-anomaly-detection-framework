@@ -1,0 +1,103 @@
+version: "3.9"
+
+# ============================================================================
+# CBDC ML Framework - Docker stack for Article 2.1 pilot experiment
+# ============================================================================
+#
+# Quick start:
+#   1. Place Elliptic++ CSV files in ./data/elliptic_pp/
+#      Download: https://github.com/git-disl/EllipticPlusPlus
+#   2. docker compose up -d
+#   3. Open MLflow UI: http://localhost:5000
+#   4. Open Jupyter:   http://localhost:8888 (token printed in `docker compose logs jupyter`)
+#   5. Run the experiment: docker compose run --rm runner python /workspace/src/run_experiment.py
+#
+# Stop everything: docker compose down
+# Reset everything (deletes MLflow runs!): docker compose down -v
+# ============================================================================
+
+services:
+
+  # ---- PostgreSQL backend for MLflow ---------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: cbdc_postgres
+    environment:
+      POSTGRES_USER: mlflow
+      POSTGRES_PASSWORD: mlflow
+      POSTGRES_DB: mlflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---- MLflow tracking server ----------------------------------------------
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.16.2
+    container_name: cbdc_mlflow
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_artifacts:/mlflow/artifacts
+    command: >
+      bash -c "pip install psycopg2-binary &&
+      mlflow server
+      --backend-store-uri postgresql://mlflow:mlflow@postgres:5432/mlflow
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000"
+    restart: unless-stopped
+
+  # ---- Jupyter notebook environment ----------------------------------------
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cbdc_jupyter
+    depends_on:
+      - mlflow
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/workspace
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      PYTHONUNBUFFERED: 1
+    command: >
+      jupyter lab
+      --ip=0.0.0.0
+      --port=8888
+      --no-browser
+      --allow-root
+      --ServerApp.token=''
+      --ServerApp.password=''
+      --notebook-dir=/workspace
+    restart: unless-stopped
+
+  # ---- Headless runner for scripts -----------------------------------------
+  runner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cbdc_runner
+    depends_on:
+      - mlflow
+    volumes:
+      - .:/workspace
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      PYTHONUNBUFFERED: 1
+    working_dir: /workspace
+    # No default command: invoked explicitly via `docker compose run --rm runner ...`
+    profiles: ["manual"]
+
+volumes:
+  postgres_data:
+  mlflow_artifacts:

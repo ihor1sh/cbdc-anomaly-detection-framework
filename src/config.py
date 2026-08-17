@@ -34,11 +34,17 @@ LABEL_ILLICIT = 1
 LABEL_LICIT = 2
 LABEL_UNKNOWN = 3
 
-# Temporal split (matches Weber et al. 2019 / Elmougy & Liu 2023 convention)
+# Temporal split (matches Weber et al. 2019 / Elmougy & Liu 2023 convention,
+# and README's documented "Train: 1-28 / Val: 29-34 / Test: 35-49").
+# NOTE: steps 43-49 alone are the post-dark-market-shutdown tail where the
+# illicit rate collapses to <0.5% (empirically verified) - a 35..42/43..49
+# split starves training of signal and tests almost entirely on that sparse
+# tail, which is what caused F1 to crater to ~0.03 instead of the ~0.77
+# documented in README.
 TIME_STEPS_TOTAL = 49
-TIME_TRAIN_END = 35   # time steps 1..35
-TIME_VAL_END = 42     # time steps 36..42
-TIME_TEST_END = 49    # time steps 43..49
+TIME_TRAIN_END = 28   # time steps 1..28
+TIME_VAL_END = 34      # time steps 29..34
+TIME_TEST_END = 49    # time steps 35..49
 
 
 # ---- Reproducibility --------------------------------------------------------

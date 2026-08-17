@@ -99,9 +99,13 @@ class IsolationForestModel(BaseModel):
 class XGBoostModel(BaseModel):
     name = "xgboost"
 
-    def __init__(self, **kwargs):
+    def __init__(self, use_focal: bool = False, focal_gamma: float = 2.0,
+                 focal_alpha: float = 0.25, **kwargs):
         super().__init__()
         import xgboost as xgb
+        self.use_focal = use_focal
+        self.focal_gamma = focal_gamma
+        self.focal_alpha = focal_alpha
         defaults = dict(
             n_estimators=500,
             max_depth=6,
@@ -115,14 +119,23 @@ class XGBoostModel(BaseModel):
             n_jobs=-1,
             random_state=42,
         )
+        if use_focal:
+            from src.imbalance import focal_loss_objective
+            defaults["objective"] = focal_loss_objective(focal_gamma, focal_alpha)
         defaults.update(kwargs)
         self.clf = xgb.XGBClassifier(**defaults)
 
     def fit(self, X_train, y_train, X_val=None, y_val=None) -> None:
-        # Handle class imbalance via scale_pos_weight
-        n_neg = (y_train == 0).sum()
-        n_pos = max(1, (y_train == 1).sum())
-        self.clf.set_params(scale_pos_weight=n_neg / n_pos)
+        if self.use_focal:
+            # Focal loss already down-weights easy examples via (1-p_t)^gamma -
+            # scale_pos_weight would double-count that rebalancing.
+            log.info("XGBoost: using focal loss (gamma=%.2f, alpha=%.2f) instead of scale_pos_weight",
+                     self.focal_gamma, self.focal_alpha)
+        else:
+            # Handle class imbalance via scale_pos_weight
+            n_neg = (y_train == 0).sum()
+            n_pos = max(1, (y_train == 1).sum())
+            self.clf.set_params(scale_pos_weight=n_neg / n_pos)
 
         t0 = time.time()
         eval_set = [(X_val, y_val)] if X_val is not None else None
@@ -133,8 +146,8 @@ class XGBoostModel(BaseModel):
         self.training_seconds = time.time() - t0
         self._record_size(self.clf)
         self._fitted = True
-        log.info("XGBoost trained in %.2fs (size=%.1f KB, pos_weight=%.2f)",
-                 self.training_seconds, self.model_bytes / 1024, n_neg / n_pos)
+        log.info("XGBoost trained in %.2fs (size=%.1f KB)",
+                 self.training_seconds, self.model_bytes / 1024)
 
     def predict_proba(self, X) -> np.ndarray:
         return self.clf.predict_proba(X)[:, 1]

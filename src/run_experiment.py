@@ -26,9 +26,9 @@ import mlflow
 from src.config import CFG
 from src.loader import load_processed_or_build, load_tx_edges
 from src.models import build_model
-from src.metrics import (
-    classification_metrics, latency_metrics, resource_metrics, shap_stability,
-)
+from src.metrics import classification_metrics, latency_metrics, resource_metrics
+from src.imbalance import apply_imbalance, STRATEGIES
+from src.shap_stability import compute_shap_stability
 
 log = logging.getLogger(__name__)
 
@@ -121,15 +121,20 @@ def run_isolation_forest(X_train, y_train, X_val, y_val, X_test, y_test,
 
 
 def run_xgboost(X_train, y_train, X_val, y_val, X_test, y_test,
-                feature_cols, seed: int, compute_shap: bool = True) -> dict:
-    log.info("--- XGBoost (seed=%d) ---", seed)
+                feature_cols, seed: int, compute_shap: bool = True,
+                imbalance: str = "baseline") -> dict:
+    log.info("--- XGBoost (seed=%d, imbalance=%s) ---", seed, imbalance)
+
+    # Rebalance the training set per the chosen strategy (no-op for
+    # baseline/focal - focal instead switches the model's loss below)
+    X_train, y_train = apply_imbalance(X_train, y_train, imbalance, seed=seed)
 
     # Wrap arrays back into DataFrame so SHAP can use feature names
     Xtr_df = pd.DataFrame(X_train, columns=feature_cols)
     Xva_df = pd.DataFrame(X_val,   columns=feature_cols)
     Xte_df = pd.DataFrame(X_test,  columns=feature_cols)
 
-    model = build_model("xgboost", random_state=seed)
+    model = build_model("xgboost", random_state=seed, use_focal=(imbalance == "focal"))
     model.fit(Xtr_df, y_train, Xva_df, y_val)
     y_score = model.predict_proba(Xte_df)
 
@@ -137,13 +142,18 @@ def run_xgboost(X_train, y_train, X_val, y_val, X_test, y_test,
     metrics.update(classification_metrics(y_test, y_score))
     metrics.update(latency_metrics(model.predict_proba, Xte_df))
     metrics.update(resource_metrics(model))
+    metrics["inference_latency_ms"] = metrics["latency_ms_per_tx_mean"]
 
     if compute_shap:
         log.info("Computing SHAP stability (this is the slow part) ...")
-        factory = lambda: build_model("xgboost", random_state=seed)
-        metrics.update(shap_stability(factory, Xtr_df, y_train, Xte_df))
+        stability = compute_shap_stability(Xtr_df, y_train, Xte_df, seed=seed)
+        metrics["shap_stability_mean"] = stability["mean_cosine_similarity"]
+        metrics["shap_stability_std"]  = stability["std_cosine_similarity"]
+        log.info("SHAP stability (imbalance=%s, seed=%d): mean=%.4f std=%.4f",
+                 imbalance, seed, metrics["shap_stability_mean"], metrics["shap_stability_std"])
     else:
         metrics["shap_stability_mean"] = float("nan")
+        metrics["shap_stability_std"]  = float("nan")
 
     return metrics
 
@@ -228,6 +238,8 @@ def main() -> int:
                         help="Random seeds to iterate over")
     parser.add_argument("--models", nargs="+", default=CFG.PILOT_MODELS,
                         choices=CFG.PILOT_MODELS)
+    parser.add_argument("--imbalance", default="baseline", choices=list(STRATEGIES),
+                        help="Class-balancing strategy for XGBoost (ignored by other models)")
     parser.add_argument("--no-shap", action="store_true",
                         help="Skip SHAP stability (much faster)")
     parser.add_argument("--smoke", action="store_true",
@@ -255,11 +267,13 @@ def main() -> int:
     all_rows = []
     for model_name in args.models:
         for seed in args.seeds:
-            run_name = f"{model_name}_seed{seed}{'_smoke' if args.smoke else ''}"
+            imbalance_suffix = f"_{args.imbalance}" if model_name == "xgboost" else ""
+            run_name = f"{model_name}_seed{seed}{imbalance_suffix}{'_smoke' if args.smoke else ''}"
             with mlflow.start_run(run_name=run_name):
                 mlflow.log_params({
                     "model":  model_name,
                     "seed":   seed,
+                    "imbalance": args.imbalance if model_name == "xgboost" else "n/a",
                     "use_kyc": not args.no_kyc,
                     "smoke":  args.smoke,
                     "n_train": int(len(y_tr)),
@@ -273,7 +287,8 @@ def main() -> int:
                 elif model_name == "xgboost":
                     metrics = run_xgboost(X_tr, y_tr, X_va, y_va, X_te, y_te,
                                           feat_cols, seed,
-                                          compute_shap=not args.no_shap)
+                                          compute_shap=not args.no_shap,
+                                          imbalance=args.imbalance)
                 elif model_name == "gcn":
                     metrics = run_gcn(df, feat_cols, seed)
                 else:
@@ -285,7 +300,9 @@ def main() -> int:
                                     and not (isinstance(v, float) and np.isnan(v))}
                 mlflow.log_metrics(numeric_metrics)
 
-                row = {"model": model_name, "seed": seed, **metrics}
+                row = {"model": model_name, "seed": seed,
+                       "imbalance": args.imbalance if model_name == "xgboost" else "n/a",
+                       **metrics}
                 all_rows.append(row)
                 log.info("Completed: %s seed=%d f1=%.4f auc_pr=%.4f",
                          model_name, seed,

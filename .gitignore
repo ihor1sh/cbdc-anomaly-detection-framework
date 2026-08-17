@@ -216,3 +216,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Dataset / experiment outputs (see README - place Elliptic dataset in data/elliptic_pp/)
+data/
+results/
+mlruns/
+mlartifacts/
+*.zip
+
+# Local machine-specific docker compose overrides (e.g. port remaps)
+docker-compose.override.yml
+
+# macOS
+.DS_Store

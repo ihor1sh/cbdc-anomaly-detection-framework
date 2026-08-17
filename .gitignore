@@ -219,7 +219,8 @@ __marimo__/
 
 # Dataset / experiment outputs (see README - place Elliptic dataset in data/elliptic_pp/)
 data/
-results/
+results/*
+!results/strategy_comparison.md
 mlruns/
 mlartifacts/
 *.zip

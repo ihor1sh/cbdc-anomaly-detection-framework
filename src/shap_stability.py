@@ -14,23 +14,34 @@ import logging
 import numpy as np
 import pandas as pd
 
+from src.imbalance import apply_imbalance
+
 log = logging.getLogger(__name__)
 
 SHAP_EVAL_ROWS = 1_000
 
 
 def compute_shap_stability(X_train, y_train, X_test,
-                            n_bootstrap: int = 10, seed: int = 42) -> dict:
+                            n_bootstrap: int = 10, seed: int = 42,
+                            imbalance: str = "baseline") -> dict:
     """
     SHAPstab = mean(cos(phi_i, phi_j)) over all i != j pairs of bootstrap
     XGBoost models' SHAP value matrices, evaluated on the first 1000 rows
     of X_test.
 
     Procedure:
-        1. Train n_bootstrap XGBoost models on bootstrap resamples of
-           (X_train, y_train).
-        2. Compute SHAP values for each model on X_test[:1000].
-        3. Average pairwise cosine similarity between SHAP matrices.
+        1. Draw n_bootstrap bootstrap resamples of (X_train, y_train), where
+           X_train/y_train are the UNTOUCHED training set (pre-resampling) -
+           the caller must not pre-apply the imbalance strategy.
+        2. Independently re-apply `imbalance` to each bootstrap draw (a fresh
+           SMOTE/ADASYN fit per draw, not a shared pre-resampled pool), then
+           train an XGBoost model on it.
+        3. Compute SHAP values for each model on X_test[:1000].
+        4. Average pairwise cosine similarity between SHAP matrices.
+
+    This measures stability of the *whole* imbalance-handling pipeline
+    (including the resampler's own randomness), not just of bootstrap
+    resampling on top of a single fixed balanced dataset.
 
     Returns:
         {"mean_cosine_similarity": float, "std_cosine_similarity": float}
@@ -56,6 +67,9 @@ def compute_shap_stability(X_train, y_train, X_test,
         boot_idx = rng.integers(0, n_train, size=n_train)
         Xb = X_train.iloc[boot_idx] if isinstance(X_train, pd.DataFrame) else X_train[boot_idx]
         yb = y_train.iloc[boot_idx].values if isinstance(y_train, pd.Series) else y_train[boot_idx]
+
+        # Independent resample per bootstrap draw (no-op for baseline/focal)
+        Xb, yb = apply_imbalance(Xb, yb, imbalance, seed=seed + b)
 
         model = xgb.XGBClassifier(
             n_estimators=500, max_depth=6, learning_rate=0.05,

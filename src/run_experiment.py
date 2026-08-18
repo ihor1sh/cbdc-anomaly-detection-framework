@@ -125,12 +125,18 @@ def run_xgboost(X_train, y_train, X_val, y_val, X_test, y_test,
                 imbalance: str = "baseline") -> dict:
     log.info("--- XGBoost (seed=%d, imbalance=%s) ---", seed, imbalance)
 
+    # Keep the untouched training set for compute_shap_stability(), which
+    # re-applies the strategy independently per bootstrap draw rather than
+    # reusing this one-shot resample.
+    X_train_raw, y_train_raw = X_train.copy(), y_train.copy()
+
     # Rebalance the training set per the chosen strategy (no-op for
     # baseline/focal - focal instead switches the model's loss below)
     X_train, y_train = apply_imbalance(X_train, y_train, imbalance, seed=seed)
 
     # Wrap arrays back into DataFrame so SHAP can use feature names
     Xtr_df = pd.DataFrame(X_train, columns=feature_cols)
+    Xtr_raw_df = pd.DataFrame(X_train_raw, columns=feature_cols)
     Xva_df = pd.DataFrame(X_val,   columns=feature_cols)
     Xte_df = pd.DataFrame(X_test,  columns=feature_cols)
 
@@ -146,7 +152,8 @@ def run_xgboost(X_train, y_train, X_val, y_val, X_test, y_test,
 
     if compute_shap:
         log.info("Computing SHAP stability (this is the slow part) ...")
-        stability = compute_shap_stability(Xtr_df, y_train, Xte_df, seed=seed)
+        stability = compute_shap_stability(Xtr_raw_df, y_train_raw, Xte_df,
+                                            seed=seed, imbalance=imbalance)
         metrics["shap_stability_mean"] = stability["mean_cosine_similarity"]
         metrics["shap_stability_std"]  = stability["std_cosine_similarity"]
         log.info("SHAP stability (imbalance=%s, seed=%d): mean=%.4f std=%.4f",

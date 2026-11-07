@@ -1,0 +1,24 @@
+[14:36:39] start: python3 -m cbdc_rev.run_stability --kinds sage --seeds 42 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+[14:36:51] start: python3 -m cbdc_rev.run_stability --kinds sage --seeds 1337 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+[14:37:03] start: python3 -m cbdc_rev.run_stability --kinds sage --seeds 2024 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+[14:37:15] start: python3 -m cbdc_rev.run_stability --kinds gcn --seeds 42 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+gcn      seed=   42 stab(per-tx)=0.758 flat=0.928 p10=0.623 >=0.8: 0.36  [340s]
+[14:43:13] start: python3 -m cbdc_rev.run_stability --kinds gcn --seeds 1337 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+gcn      seed= 1337 stab(per-tx)=0.840 flat=0.859 p10=0.713 >=0.8: 0.73  [294s]
+[14:48:23] start: python3 -m cbdc_rev.run_stability --kinds gcn --seeds 2024 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+sage     seed=   42 stab(per-tx)=0.833 flat=0.932 p10=0.693 >=0.8: 0.71  [815s]
+[14:50:32] start: python3 -m cbdc_rev.run_stability --kinds rf --seeds 2024 --boots 6 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+sage     seed= 2024 stab(per-tx)=0.832 flat=0.903 p10=0.696 >=0.8: 0.69  [871s]
+[14:51:45] start: python3 -m cbdc_rev.run_stability --kinds mlp --seeds 1337 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+sage     seed= 1337 stab(per-tx)=0.832 flat=0.904 p10=0.698 >=0.8: 0.68  [960s]
+[14:53:05] start: python3 -m cbdc_rev.run_stability --kinds mlp --seeds 2024 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+gcn      seed= 2024 stab(per-tx)=0.801 flat=0.890 p10=0.684 >=0.8: 0.61  [398s]
+[14:55:18] start: python3 -m cbdc_rev.run_matrix --models xgb mlp gcn --conds sig50 --out $CBDC_ROOT/results/runs_E.jsonl
+rf       seed= 2024 stab(per-tx)=0.962 flat=0.962 p10=0.936 >=0.8: 1.00  [353s]
+mlp      seed= 1337 stab(per-tx)=0.829 flat=0.917 p10=0.685 >=0.8: 0.66  [304s]
+gcn      sig50    seed=    7 auc_pr=0.426 f1@0.5=0.339 p=0.217 r=0.775 rec@fpr5=0.601 [123s]
+xgb      sig50    seed=31415 auc_pr=0.797 f1@0.5=0.775 p=0.844 r=0.717 rec@fpr5=0.763 [12s]
+mlp      seed= 2024 stab(per-tx)=0.860 flat=0.934 p10=0.714 >=0.8: 0.76  [283s]
+mlp      sig50    seed=31415 auc_pr=0.434 f1@0.5=0.405 p=0.274 r=0.775 rec@fpr5=0.571 [47s]
+gcn      sig50    seed=31415 auc_pr=0.463 f1@0.5=0.346 p=0.221 r=0.789 rec@fpr5=0.554 [53s]
+QUEUE_S7_DONE

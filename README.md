@@ -1,162 +1,80 @@
-# CBDC Anomaly Detection Framework
+# CBDC anomaly-detection model selection — corrected pipeline (v2.0)
 
-> A multi-criteria machine learning framework for anomaly detection in Central Bank Digital Currency (CBDC) transactions, integrating explainability, inference latency, and KYC identity-aware features.
+> **Read this first.** v2.0 **supersedes the experiments of v1.0**. The v1.0 README claimed that a synthetic KYC overlay "substantially hurts GCN (−17.7 pp F1) through graph-amplified
+> hyper-flagging — a previously unreported phenomenon" and reported a SHAP stability of 0.874 ± 0.002. **Neither statement is supported**: re-auditing the code and running
+> control experiments showed that the effect is an input-scale artefact of the nominal pipeline and that the stability estimate had no run-to-run variance by construction.
+> The complete list of defects is in [`CHANGELOG.md`](CHANGELOG.md). The v1.0 code is kept in `src/` only for transparency (the last v1.0 state is also tagged
+> [`v1.0.0`](https://github.com/ihor1sh/cbdc-anomaly-detection-framework/tree/v1.0.0)); please do not cite its numbers.
 
----
+This repository accompanies the paper *"Multi-criteria selection of anomaly detection models for payment transactions"*
+(Ihor Shylenko, Volodymyr Nakonechnyi, Taras Shevchenko National University of Kyiv; Ukrainian-language manuscript submitted to a journal of the Faculty of
+Information Technology, KNU). It contains the code, the raw per-run results, and the scripts that regenerate every table and figure of the paper.
 
-## Overview
+## What the study does
 
-This repository contains the full experimental pipeline for the paper:
+* **Method.** Models are compared on four criteria — recall at a false-positive-rate budget (R<sub>0.05</sub>), AUC-PR, single-transaction p95 latency, and stability of local
+  explanations under re-training — with a *tolerant Pareto front* (intervals that overlap are ties) followed by *lexicographic* ordering. The decision is re-computed for all
+  4! = 24 priority orders and four latency budgets (1/5/20/100 ms), so the output is a set of winners together with the priorities under which each one wins
+  (`cbdc_rev/selection.py`).
+* **Pilot data.** The public Elliptic Bitcoin graph (Weber et al., 2019) is used as a stand-in, because no public CBDC transaction data exist. Temporal split:
+  train steps 1–28, validation 29–34, test 35–49. Graph models are trained on the induced graph of steps ≤ 34 and evaluated **inductively** on the disjoint graph of steps ≥ 35
+  (Elliptic has no edges between time steps).
+* **Candidates (fixed, untuned hyper-parameters).** Isolation Forest (raw and sign-oriented), XGBoost, LightGBM, Random Forest, MLP (graph-free control), GCN, GraphSAGE, GAT; five seeds.
+* **Controls for the synthetic KYC overlay.** none · raw scale (as in v1.0) · standardised · five unit-scale noise columns · overlay re-drawn for every run ·
+  label-conditional *positive controls* (overlay that does carry label information, strength ρ = 0.30 / 0.50 / 0.80; XGBoost for all three strengths, LightGBM for ρ = 0.80,
+  MLP and GCN for ρ = 0.30 and 0.50, five seeds each) · longer training budget (≤ 1000 epochs) for the GCN and MLP, three seeds.
+* **Stability of explanations (criterion S).** Mean pairwise cosine similarity of local attributions (TreeSHAP for tree ensembles and Isolation Forest, gradient × input for the
+  neural models) over models re-trained on bootstrap resamples of the training set; one value per run seed. The attribution *spaces* differ between families (log-odds margin for
+  XGBoost/LightGBM, class probability for Random Forest, input space for the neural models), so S is comparable only within a family. `cbdc_rev/run_stability_prob.py` is a control
+  for the three tree ensembles: the *same* bootstrap models and transactions are explained once more with interventional TreeSHAP in probability space, and the selection is
+  re-computed with S taken from that single space (`common_space` in `tables/selection.json`; Table 9 of the paper).
+* **Honest limits.** Bitcoin data are not CBDC data; the overlay carries no information on illicit behaviour by construction; after time step 43 (dark-market shutdown) *no* model works,
+  so pooled test metrics mix two regimes (see `tables/` and the *Results* and *Limitations* parts of the paper).
 
-**"A Framework for Selecting Machine Learning Models for Anomaly Detection in Central Bank Digital Currency Transactions: Integrating Explainability, Latency, and Identity-Aware Features"**
-
-*Ihor Shylenko, Volodymyr Nakonechnyi — Taras Shevchenko National University of Kyiv*
-
-The framework addresses a critical gap in CBDC cybersecurity research: no prior work provides a unified, criteria-based methodology for selecting ML models for CBDC transaction monitoring that simultaneously handles **KYC identity binding**, **mandatory explainability**, and **real-time latency** constraints.
-
----
-
-## Key Results
-
-| Model | F1 | Precision | Recall | SHAP Stability |
-|---|---|---|---|---|
-| XGBoost | **0.774 ± 0.010** | **0.849 ± 0.020** | 0.711 ± 0.005 | **0.874 ± 0.002** ✅ |
-| GCN | 0.160 ± 0.030 | 0.087 ± 0.019 | **0.974 ± 0.043** | N/A |
-| Isolation Forest | ~0.000 | ~0.000 | ~0.001 | N/A |
-
-**Novel finding:** KYC overlay marginally helps XGBoost (+1.4 pp precision) but substantially hurts GCN (−17.7 pp F1) through graph-amplified hyper-flagging — a previously unreported phenomenon.
-
----
-
-## What's Inside
-
-```
-cbdc-anomaly-detection-framework/
-├── docker-compose.yml          # Full stack: PostgreSQL + MLflow + Jupyter
-├── Dockerfile                  # Python 3.11, XGBoost, PyTorch, SHAP, MLflow
-├── requirements.txt            # All dependencies pinned
-├── src/
-│   ├── config.py               # Experiment configuration
-│   ├── loader.py               # Elliptic dataset loader + temporal split
-│   ├── kyc_overlay.py          # Synthetic KYC identity generator
-│   ├── models.py               # XGBoost, Isolation Forest, pure-PyTorch GCN
-│   ├── metrics.py              # F1, AUC-PR, SHAP stability, latency
-│   └── run_experiment.py       # Main entry point
-├── data/                       # Place Elliptic dataset here (see below)
-└── results/                    # Experiment outputs, MLflow logs
-```
-
----
-
-## Getting Started
-
-### 1. Prerequisites
-
-- Docker Desktop (tested on v29.3.1)
-- ~4 GB free disk space
-- Elliptic dataset (download separately)
-
-### 2. Download the Elliptic Dataset
-
-The dataset is publicly available on Kaggle:
+## Layout
 
 ```
-https://www.kaggle.com/datasets/ellipticco/elliptic-data-set
+cbdc_rev/            code of v2.0 (data loading, overlays, models, metrics, latency, stability, selection, report, figures)
+scripts/             prep_data.py (Elliptic CSV -> numpy arrays) and run_all.sh (the order in which the experiments were run); preflight.sh is the legacy v1.0 Docker check
+results/             raw per-run results (runs_*.jsonl), latency.json, stability.jsonl, stability_prob.jsonl (attribution-space control), windows.json, iforest_extra.json, cached test scores (scores_*.npz); file guide in results/README.md
+tables/              CSV / JSON tables generated by `python -m cbdc_rev.report` (criteria, selection, facts, ...)
+figures/             Figures 1–4 of the paper (PNG, 300 dpi, Ukrainian labels)
+logs/                stdout of the runs of the reported experiments (what was started, with which arguments; sandbox paths replaced by $CBDC_ROOT); see logs/README.md
+CHANGELOG.md         defects of v1.0 and what changed
+CITATION.cff         citation metadata (GitHub: "Cite this repository")
+src/, Dockerfile, docker-compose.yml, requirements-v1.txt, scripts/preflight.sh   legacy v1.0 files (superseded)
 ```
 
-Place the files in `data/elliptic_pp/`:
+## Reproducing
 
-```
-data/elliptic_pp/
-├── elliptic_txs_features.csv
-├── elliptic_txs_classes.csv
-└── elliptic_txs_edgelist.csv
-```
-
-### 3. Run the Experiment
+The Elliptic data set is **not** redistributed here; download it from Kaggle (`ellipticco/elliptic-data-set`) and unpack the three CSV files, then:
 
 ```bash
-# Start the full stack (MLflow + Jupyter)
-docker compose up -d
-
-# Run the main experiment (all 3 models, 5 seeds)
-docker compose run --rm runner python -m src.run_experiment
-
-# Run without SHAP (faster, for quick test)
-docker compose run --rm runner python -m src.run_experiment --no-shap
-
-# View results in MLflow
-open http://localhost:5000
-
-# Open Jupyter
-open http://localhost:8888
+python -m venv .venv && . .venv/bin/activate
+pip install -r requirements.txt               # CPU-only; torch / torch_geometric wheels from the official indexes
+export CBDC_ROOT=$PWD                          # results/, tables/, figures/ live under this directory
+export CBDC_DATA=$PWD/data                     # arrays written by prep_data.py
+python scripts/prep_data.py /path/to/elliptic_bitcoin_dataset $CBDC_DATA
+bash scripts/run_all.sh                        # ~ 7–9 CPU-hours on 2 vCPUs (can be run in parts; finished rows are skipped)
+python -m cbdc_rev.run_windows --res results   # pre-/post-step-43 windows
+python -m cbdc_rev.report                      # tables/*.csv, tables/selection.json
+python -m cbdc_rev.make_figs                   # figures/fig1..fig4
 ```
 
----
+`run_matrix` appends one JSON line per (model, condition, seed) and skips rows that are already present, so an interrupted run can simply be restarted.
+To regenerate tables and figures **without retraining**, keep the supplied `results/` folder and run only the last three commands (the data arrays are still needed for the
+split masks and class prevalence).
 
-## Synthetic KYC Overlay
+**Platform notes.** The reported runs used Linux (Python 3.13, CPU only). macOS was not tested; there, XGBoost and LightGBM need the OpenMP runtime
+(`brew install libomp`). Install the CPU builds of PyTorch and torch_geometric from the official wheel indexes (see the comment in `requirements.txt`).
 
-The `kyc_overlay.py` module generates synthetic CBDC-like identity attributes for each transaction, following regulatory distributions:
+**Hardware / software of the reported runs.** Virtual machine with 2 vCPU (Intel Xeon, 2.1 GHz), ≈ 8 GB RAM, no GPU; Python 3.13; numpy 2.5.3, pandas 3.0.5, scipy 1.18.1,
+scikit-learn 1.9.1, xgboost 3.4.1, lightgbm 4.7.0, torch 2.15.0, torch_geometric 2.8.1, shap 0.54.1, matplotlib 3.11.2. Latency numbers are for single-thread reference
+implementations in Python on that machine and do not transfer to other hardware; only their order of magnitude and ordering are meaningful.
 
-| Attribute | Distribution |
-|---|---|
-| Country risk (FATF) | High-risk 4%, Increased monitoring 15%, Standard 81% |
-| KYC tier (NBU standard) | Tier 1: 30%, Tier 2: 60%, Tier 3: 10% |
-| PEP flag | Bernoulli(p=0.03) |
-| AML history | Geometric, 92% zero |
-| Identity binding | Zipfian (α=1.6) |
+## Licence and citation
 
----
+MIT licence (see `LICENSE`). If you use the code, please cite the paper above (details to be added when published; GitHub's *Cite this repository* button reads `CITATION.cff`) and the Elliptic data set:
+Weber, M. et al. (2019), *Anti-money laundering in Bitcoin: Experimenting with graph convolutional networks for financial forensics*, arXiv:1908.02591.
 
-## Experimental Setup
-
-| Parameter | Value |
-|---|---|
-| Dataset | Elliptic Bitcoin (203,769 tx, 234,355 edges) |
-| Features | 166 original + 5 KYC = 171 total |
-| Temporal split | Train: steps 1–28 / Val: 29–34 / Test: 35–49 |
-| Random seeds | 42, 1337, 2024, 7, 31415 |
-| Hardware | AMD Ryzen 5 5600, 16 GB RAM, Docker on WSL2 |
-| Date | 19 March 2026 |
-
----
-
-## Reproduce SHAP Stability
-
-```bash
-docker compose run --rm runner python -m src.run_experiment \
-    --shap-bootstrap 10 \
-    --model xgboost
-```
-
-Expected output: SHAP cosine similarity ≥ 0.87 across 10 bootstrap models.
-
----
-
-## Citation
-
-If you use this framework, please cite:
-
-```bibtex
-@article{shylenko2026cbdc,
-  title={A Framework for Selecting Machine Learning Models for Anomaly Detection 
-         in Central Bank Digital Currency Transactions},
-  author={Shylenko, Ihor and Nakonechnyi, Volodymyr},
-  journal={Bezpeka Informatsiinykh System i Tekhnolohii},
-  year={2026},
-  doi={10.17721/ISTS}
-}
-```
-
----
-
-## License
-
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-## Contact
-
-**Ihor Shylenko** — ihor.shylenko@knu.ua  
-Faculty of Information Technology, Taras Shevchenko National University of Kyiv
+Contact: Ihor Shylenko, ihor.shylenko@knu.ua

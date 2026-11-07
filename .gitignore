@@ -216,3 +216,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ---- v2.0 additions ----
+# macOS
+.DS_Store
+# The Elliptic data set and the arrays derived from it are not redistributed (see README, "Reproducing")
+/data/
+/archive.zip
+/elliptic_bitcoin_dataset/
+# Keep the stdout logs of the reported runs: the generic "*.log" rule above would silently drop them
+!/logs/*.log

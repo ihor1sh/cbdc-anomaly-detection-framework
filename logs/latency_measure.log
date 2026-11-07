@@ -1,0 +1,9 @@
+iforest single p50 10.829 p95 15.968 p99 18.391 ms | batch 0.0149 ms/tx | 24s
+xgb single p50 0.336 p95 0.636 p99 0.838 ms | batch 0.0074 ms/tx | 1s
+lgbm single p50 0.632 p95 0.910 p99 1.021 ms | batch 0.0333 ms/tx | 3s
+rf single p50 15.978 p95 23.705 p99 28.059 ms | batch 0.0227 ms/tx | 36s
+mlp single p50 0.019 p95 0.051 p99 0.078 ms | batch 0.0005 ms/tx | 0s
+gcn single p50 0.293 p95 1.328 p99 2.576 ms | batch 0.0011 ms/tx | 2s
+sage single p50 0.429 p95 1.314 p99 2.153 ms | batch 0.0023 ms/tx | 2s
+gat single p50 1.010 p95 2.083 p99 3.132 ms | batch 0.0018 ms/tx | 3s
+LAT_MEASURE_DONE

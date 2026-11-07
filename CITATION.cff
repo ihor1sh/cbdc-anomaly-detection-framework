@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata. The accompanying paper will be added here when it is published."
+title: "Multi-criteria selection of anomaly detection models for payment transactions: code and results (v2.0)"
+type: software
+version: 2.0.0
+date-released: "2026-11-07"
+license: MIT
+repository-code: "https://github.com/ihor1sh/cbdc-anomaly-detection-framework"
+abstract: "Corrected pipeline, raw per-run results and reproduction scripts for a pilot study that selects anomaly detection models for payment transactions by recall at a fixed false-alarm budget, AUC-PR, single-transaction latency and stability of local explanations (Elliptic Bitcoin graph as a stand-in for CBDC data). Supersedes v1.0."
+keywords:
+  - anomaly detection
+  - model selection
+  - Pareto front
+  - explanation stability
+  - graph neural networks
+  - central bank digital currency
+authors:
+  - family-names: Shylenko
+    given-names: Ihor
+    orcid: "https://orcid.org/0009-0005-9007-7443"
+    email: ihor.shylenko@knu.ua
+    affiliation: "Taras Shevchenko National University of Kyiv"
+  - family-names: Nakonechnyi
+    given-names: Volodymyr
+    orcid: "https://orcid.org/0000-0002-0247-5400"
+    email: volodym.nakonechnyi@knu.ua
+    affiliation: "Taras Shevchenko National University of Kyiv"

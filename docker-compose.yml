@@ -43,7 +43,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "5000:5000"
+      - "127.0.0.1:5000:5000"   # v2.0 hardening: localhost only (MLflow has no authentication)
     volumes:
       - mlflow_artifacts:/mlflow/artifacts
     command: >
@@ -64,7 +64,7 @@ services:
     depends_on:
       - mlflow
     ports:
-      - "8888:8888"
+      - "127.0.0.1:8888:8888"   # v2.0 hardening: localhost only
     volumes:
       - .:/workspace
     environment:
@@ -76,8 +76,6 @@ services:
       --port=8888
       --no-browser
       --allow-root
-      --ServerApp.token=''
-      --ServerApp.password=''
       --notebook-dir=/workspace
     restart: unless-stopped
 

@@ -1,0 +1,4 @@
+[11:02:04] start: python3 -m cbdc_rev.run_stability --kinds gat --seeds 42 1337 2024 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+gat      seed=   42 stab(per-tx)=0.403 flat=0.412 p10=0.095 >=0.8: 0.02  [413s]
+gat      seed= 1337 stab(per-tx)=0.463 flat=0.293 p10=0.098 >=0.8: 0.06  [1026s]
+gat      seed= 2024 stab(per-tx)=0.423 flat=0.320 p10=0.077 >=0.8: 0.02  [353s]

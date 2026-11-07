@@ -1,0 +1,9 @@
+iforest trained and cached
+xgb trained and cached
+lgbm trained and cached
+rf trained and cached
+mlp trained and cached
+gcn trained and cached
+sage trained and cached
+gat trained and cached
+LAT_TRAIN_DONE

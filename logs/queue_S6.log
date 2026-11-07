@@ -1,0 +1,10 @@
+[11:20:37] start: python3 -m cbdc_rev.run_stability --kinds rf --seeds 42 --boots 6 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+[11:23:03] start: python3 -m cbdc_rev.run_stability --kinds sage --seeds 42 1337 2024 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+[11:23:28] start: python3 -m cbdc_rev.run_stability --kinds rf --seeds 1337 --boots 6 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+rf       seed=   42 stab(per-tx)=0.957 flat=0.958 p10=0.930 >=0.8: 1.00  [439s]
+[11:28:15] start: python3 -m cbdc_rev.run_stability --kinds mlp gcn --seeds 42 1337 2024 --boots 3 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+[11:32:11] start: python3 -m cbdc_rev.run_stability --kinds rf --seeds 2024 --boots 6 --neval 500 --cond std42 --out $CBDC_ROOT/results/stability.jsonl
+rf       seed= 1337 stab(per-tx)=0.959 flat=0.959 p10=0.936 >=0.8: 1.00  [512s]
+[11:32:37] start: python3 -m cbdc_rev.run_matrix --models xgb mlp gcn --conds sig50 --out $CBDC_ROOT/results/runs_E.jsonl
+mlp      sig50    seed=    7 auc_pr=0.462 f1@0.5=0.422 p=0.294 r=0.749 rec@fpr5=0.645 [122s]
+mlp      seed=   42 stab(per-tx)=0.848 flat=0.944 p10=0.684 >=0.8: 0.75  [435s]

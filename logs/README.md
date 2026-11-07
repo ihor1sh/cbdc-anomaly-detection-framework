@@ -1,6 +1,6 @@
 # logs/ — stdout of the reported runs
 
-Plain-text output of the job queues in which the experiments were run (the sandbox path of the working directory is replaced by `$CBDC_ROOT`).
+Plain-text output of the job queues in which the experiments were run (the path of the working directory of the original run is replaced by `$CBDC_ROOT`).
 Queues were scheduled for convenience, so one log may contain rows that belong to different `results/runs_*.jsonl` files, and a few rows were produced in other
 queues or sessions and appear in no log. **`results/*.jsonl` is the authoritative record; the logs are provided for transparency.**
 
@@ -15,4 +15,4 @@ queues or sessions and appear in no log. **`results/*.jsonl` is the authoritativ
 | `queue_S1.log`, `queue_S4.log`, `queue_S6.log`, `queue_S7.log` | explanation-stability runs (`stability.jsonl`); `queue_S6.log` also contains the start lines of some remaining `sig50` runs |
 | `latency_train.log`, `latency_measure.log` | training of the cached models and single-transaction latency (`latency.json`) |
 
-Not included: the `pip install` logs of the sandbox, and the progress-bar-only logs of `run_stability_prob` (their results are in `results/stability_prob.jsonl`).
+Not included: the `pip install` logs of the environment set-up, and the progress-bar-only logs of `run_stability_prob` (their results are in `results/stability_prob.jsonl`).
